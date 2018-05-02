@@ -21,6 +21,7 @@
     <string name="temperature">Temperature:</string>
     <string name="sample_id">Sample ID:</string>
     <string name="additional_comments">Additional Comments</string>
+    <string name="load">Loading ...</string>
 
     <string-array name="names_array">
         <item>Andrew Richardson</item>

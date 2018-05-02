@@ -1,6 +1,6 @@
 /*
  *  Author: Andrew Greene
- *  Last updated: April 15th, 2018
+ *  Last updated: April 22th, 2018
  *  Description: Here the user enters in all of the Relative MetaData pertaining to the data set.
  *               The data is saved and passed to the next screen(s).  Background Operations are
  *               Time, Date, and GPS Autofill, and field validation
@@ -19,11 +19,13 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Path;
 import android.location.Location;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.provider.Settings;
+import android.renderscript.Sampler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.FileProvider;
@@ -38,12 +40,15 @@ import android.location.LocationManager;
 import android.support.annotation.Nullable;
 import android.widget.Button;
 import android.widget.TextView;
+
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.AuthProvider;
+import java.security.spec.ECField;
 import java.text.DateFormat;
 import android.widget.*;
 import java.text.SimpleDateFormat;
@@ -60,7 +65,7 @@ import android.widget.AutoCompleteTextView;
 
 public class metaData extends AppCompatActivity {
     //Shared Preference Keys
-    public static final String MyPREFERENCES = "MyPrefs" ;
+    public static final String MyPREFERENCES = "MyPrefs";
     public static final String K_Name = "nameKey";
     public static final String K_Site = "siteKey";
     public static final String K_ID = "idKey";
@@ -77,7 +82,7 @@ public class metaData extends AppCompatActivity {
     public EditText sampleID;
     public EditText temperature;
     public EditText comments;
-
+    Intent metaDataScreen;
     // Camera Variables
     ImageButton cameraB;
     public Bitmap Bimage;
@@ -102,10 +107,12 @@ public class metaData extends AppCompatActivity {
     // Text Watcher Handles Field Validation, checks after the Text has been changed, Raises Toast
     private TextWatcher textWatcher = new TextWatcher() {
         @Override
-        public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
+        public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        }
 
         @Override
-        public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
+        public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        }
 
         @Override
         public void afterTextChanged(Editable editable) {
@@ -119,8 +126,6 @@ public class metaData extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.meta_data);
 
-        // JIMMY ADDED CODE HERE
-        // THANKS JIMMY! -Andrew
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
                         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
@@ -136,7 +141,6 @@ public class metaData extends AppCompatActivity {
                                         View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
                     }
                 });
-        //JIMMY IS DONE ADDING CODE HERE
 
         // Assigning Variables by ID
         Date currentDate = new Date();
@@ -148,61 +152,10 @@ public class metaData extends AppCompatActivity {
         imagePreview = findViewById(R.id.imageView);
 
         // Initiates field Validation, Disables "Finish" button on Screen Creation
-        //operatorName.addTextChangedListener(textWatcher);
         SiteName.addTextChangedListener(textWatcher);
         sampleID.addTextChangedListener(textWatcher);
         checkFieldsForEmptyValues();
 
-        // ***AutoFill***
-
-        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
-        if(sharedpreferences.contains("nameKey")){
-            OperatorName.setText(sharedpreferences.getString("nameKey",null));
-        }
-        if(sharedpreferences.contains("siteKey")){
-            SiteName.setText(sharedpreferences.getString("siteKey",null));
-        }
-        if(sharedpreferences.contains("idKey")){
-            sampleID.setText(sharedpreferences.getString("idKey",null));
-        }
-
-        /*//TODO Clear Shared preferences after they are loaded.
-        String CheckFlag;
-        try{
-            CheckFlag = getIntent().getStringExtra("FLAG");
-        }
-        catch (Exception e){
-            CheckFlag = "";
-        }
-
-        if(CheckFlag == "True") {
-            if(sharedpreferences.contains("tempKey")){
-                SiteName.setText(sharedpreferences.getString("tempKey",null));
-            }
-            if(sharedpreferences.contains("commentsKey")){
-                SiteName.setText(sharedpreferences.getString("commentsKey",null));
-            }
-            if(sharedpreferences.contains("longKey")){
-                SiteName.setText(sharedpreferences.getString("longKey",null));
-            }
-            if(sharedpreferences.contains("latKey")){
-                SiteName.setText(sharedpreferences.getString("latKey",null));
-            }
-            if(sharedpreferences.contains("elevKey")){
-                SiteName.setText(sharedpreferences.getString("elevKey",null));
-            }
-        }*/
-
-
-
-        // Hardcoded ArrayList, Will delete
-        // Get a reference to the AutoCompleteTextView in the layout
-        // Get the string array
-        //String[] names = getResources().getStringArray(R.array.names_array);
-        // Create the adapter and set it to the AutoCompleteTextView
-
-        //ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, names);
-        //operatorName.setAdapter(adapter);
 
         //***Time and Date***
         TextView tv_Date;
@@ -221,19 +174,19 @@ public class metaData extends AppCompatActivity {
         ImageButton imageB = (ImageButton) findViewById(R.id.cameraB);
 
         //***GPS***
-        et_GPSLong =  findViewById(R.id.et_GPSLong);
-        et_GPSLat =  findViewById(R.id.et_GPSLat);
-        et_Elevation =  findViewById(R.id.et_Elevation);
+        et_GPSLong = findViewById(R.id.et_GPSLong);
+        et_GPSLat = findViewById(R.id.et_GPSLat);
+        et_Elevation = findViewById(R.id.et_Elevation);
 
         GPS_b = findViewById(R.id.GPSbutton);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-        // GPS Listener
+        // GPS Listener Initiates GPS Search on Create.
         listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                et_GPSLong.setText(""+ location.getLongitude());
+                et_GPSLong.setText("" + location.getLongitude());
                 et_GPSLat.setText("" + location.getLatitude());
                 et_Elevation.setText("" + location.getAltitude());
             }
@@ -256,15 +209,58 @@ public class metaData extends AppCompatActivity {
             }
         };
         configure_button();
-        // Initiates GPS Search on Create.
         GPS_b.performClick();
+
+        // ***AutoFill***
+
+        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        if (sharedpreferences.contains("nameKey")) {
+            OperatorName.setText(sharedpreferences.getString("nameKey", null));
+        }
+        if (sharedpreferences.contains("siteKey")) {
+            SiteName.setText(sharedpreferences.getString("siteKey", null));
+        }
+        //if(sharedpreferences.contains("idKey")){
+        //    sampleID.setText(sharedpreferences.getString("idKey",null));
+        //}
+
+        String CheckFlag;
+        CheckFlag = getIntent().getStringExtra("FLAG");
+        //Toast.makeText(metaData.this,CheckFlag,Toast.LENGTH_LONG).show();
+        if (CheckFlag.equals("True")) {
+            //Toast.makeText(metaData.this,"I am in the right spot",Toast.LENGTH_LONG).show();
+            if (sharedpreferences.contains("idKey")) {
+                sampleID.setText(sharedpreferences.getString("idKey", null));
+            }
+            if (sharedpreferences.contains("tempKey")) {
+                temperature.setText(sharedpreferences.getString("tempKey", null));
+            }
+            if (sharedpreferences.contains("commentsKey")) {
+                comments.setText(sharedpreferences.getString("commentsKey", null));
+            }
+            if (sharedpreferences.contains("longKey")) {
+                et_GPSLong.setText(sharedpreferences.getString("longKey", null));
+            }
+            if (sharedpreferences.contains("latKey")) {
+                et_GPSLat.setText(sharedpreferences.getString("latKey", null));
+            }
+            if (sharedpreferences.contains("elevKey")) {
+                et_Elevation.setText(sharedpreferences.getString("elevKey", null));
+            }
+            Bitmap TempImage;
+            try{
+                TempImage = getIntent().getParcelableExtra("IMAGE");
+                image = TempImage;
+                imagePreview.setImageBitmap(image);
+            } catch( Exception e){}
+        }
 
     }
 
     // Requesting Permissions for GPS
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode){
+        switch (requestCode) {
             case 10:
                 configure_button();
                 break;
@@ -275,12 +271,12 @@ public class metaData extends AppCompatActivity {
 
 
     // Starts On click Listener for GPS
-    void configure_button(){
+    void configure_button() {
         // first check for permissions
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.INTERNET}
-                        ,10);
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.INTERNET}
+                        , 10);
             }
             return;
         }
@@ -306,7 +302,7 @@ public class metaData extends AppCompatActivity {
         String imageFileName = "image";
         //String imageFileName = "I-" + SiteName.getText() + "_" + sampleID.getText() + "_" + currentDateTimeFormatted;
         //System.out.println("TEST: ImageName: "+ imageFileName);
-        Toast.makeText(metaData.this,imageFileName,Toast.LENGTH_LONG).show();
+        //Toast.makeText(metaData.this,imageFileName,Toast.LENGTH_LONG).show();
 
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
@@ -340,30 +336,24 @@ public class metaData extends AppCompatActivity {
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
 
+            } else {
+                System.out.println("TEST: Writing PhotoFile Failed");
             }
-            else{System.out.println("TEST: Writing PhotoFile Failed");}
 
         }
     }
 
-    //This just gets the BitMap,  Which is the size of the Thumbnail
+    //This just sets the BitMap to the Image View.
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            //File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            //File path = storageDir;
             //System.out.println("TEST: Path: " + storageDir);
             //String imageFileName = "I-" + SiteName.getText() + "_" + sampleID.getText() + "_" + currentDateTimeFormatted;
             //System.out.println("TEST: File: " + imageFileName);
             Bimage = BitmapFactory.decodeFile(mCurrentPhotoPath);
+            MediaStore.Images.Media.insertImage(getContentResolver(), Bimage, mCurrentPhotoPath, "Site Name: " + SiteName.getText() + "Sample ID:" + sampleID.getText());
+            //Toast.makeText(metaData.this,"Saved to Gallery",Toast.LENGTH_LONG).show();
             setPic();
-
-            //:Old:
-            //Bitmap image = BitmapFactory.decodeFile(""+storageDir +"/"+ imageFileName);
-            //Bundle extras = data.getExtras();
-            //Bitmap imageBitmap = (Bitmap) extras.get("data");
-            //image = (Bitmap) data.getExtras().get("data");
-            //imagePreview.setImageBitmap(Bimage);
         }
     }
 
@@ -377,22 +367,47 @@ public class metaData extends AppCompatActivity {
         bmOptions.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
         int photoW = bmOptions.outWidth;
+        //Toast.makeText(metaData.this,"Width:"+String.valueOf(photoW),Toast.LENGTH_LONG).show();
         int photoH = bmOptions.outHeight;
+        // Handling Error so it only accepts Portrait Images
+        // If statement accepts Portrait Images Images
+        if (photoW < photoH) {
 
-        // Determine how much to scale down the image
-        int scaleFactor = Math.min(photoW/targetW, photoH/targetH);
+            // Determine how much to scale down the image
 
-        // Decode the image file into a Bitmap sized to fill the View
-        bmOptions.inJustDecodeBounds = false;
-        bmOptions.inSampleSize = scaleFactor;
-        bmOptions.inPurgeable = true;
+            int scaleFactor = Math.min(photoW / targetW, photoH / targetH);
 
-        image = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
-        imagePreview.setImageBitmap(image);
+            // Decode the image file into a Bitmap sized to fill the View
+            bmOptions.inJustDecodeBounds = false;
+            bmOptions.inSampleSize = scaleFactor;
+            bmOptions.inPurgeable = true;
+
+            image = BitmapFactory.decodeFile(mCurrentPhotoPath, bmOptions);
+            //Toast.makeText(metaData.this, "Unscaled: " + image.getByteCount(), Toast.LENGTH_SHORT).show();
+            //scaleImage();
+            //Toast.makeText(metaData.this, "Scaled: " + image.getByteCount(), Toast.LENGTH_SHORT).show();
+            imagePreview.setImageBitmap(image);
+
+
+        } else {
+            Toast.makeText(metaData.this, "Please take a Portrait Picture", Toast.LENGTH_LONG).show();
+        }
+
+
+    }
+
+    public void scaleImage() {
+        if(image.getByteCount() > 500000) {
+            Bitmap original = BitmapFactory.decodeFile(mCurrentPhotoPath);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            original.compress(Bitmap.CompressFormat.PNG, 90, out);
+            image = BitmapFactory.decodeStream(new ByteArrayInputStream(out.toByteArray()));
+            Toast.makeText(metaData.this, "Re-Scaling....", Toast.LENGTH_SHORT).show();
+            scaleImage();
+        }
     }
 
     //***Field Validation***
-    //TODO Unnecessary Function,  Delete it
     private  void checkFieldsForEmptyValues(){
         SiteName = findViewById(R.id.et_SN);
         OperatorName = findViewById(R.id.et_ON);
@@ -442,20 +457,8 @@ public class metaData extends AppCompatActivity {
         String[] passingValues = new String[8];
         int counter;
         Intent graphScreen;
-        //Context context = this; // This might be unnecessary
 
-        // Re-Fetch all the text boxes
-        // TODO Redundant?
-        //EditText siteName = findViewById(R.id.et_SN);
-        //EditText OperatorName = findViewById(R.id.et_ON);
-        //EditText sampleID = findViewById(R.id.et_SID);
-        //EditText temperature = findViewById(R.id.et_Temp);
-        //EditText comments = findViewById(R.id.et_Com);
-        //EditText longitude = findViewById(R.id.et_GPSLong);
-        //EditText latitude = findViewById(R.id.et_GPSLat);
-        //EditText elevation = findViewById(R.id.et_Elevation);
-
-        //Shared Preference Loading
+        //Shared Preference Loading.
         String n  = OperatorName.getText().toString();
         String s  = SiteName.getText().toString();
         String a  = sampleID.getText().toString();
@@ -464,7 +467,6 @@ public class metaData extends AppCompatActivity {
         String d  = et_GPSLong.getText().toString();
         String e  = et_GPSLat.getText().toString();
         String f  = et_Elevation.getText().toString();
-
 
         SharedPreferences.Editor editor = sharedpreferences.edit();
 
@@ -511,7 +513,7 @@ public class metaData extends AppCompatActivity {
         graphScreen.putExtra("SAMPLE_ID", passingValues[2]);
         graphScreen.putExtra("TEMPERATURE", passingValues[3]);
         graphScreen.putExtra("COMMENTS", passingValues[4]);
-        graphScreen.putExtra("IMAGEPATH", mCurrentPhotoPath);
+        //graphScreen.putExtra("IMAGEPATH", mCurrentPhotoPath);
         graphScreen.putExtra("IMAGE", image);
         graphScreen.putExtra("TIME", currentDateTimeFormatted);
         graphScreen.putExtra("GPSLong", passingValues[5]);
@@ -528,7 +530,6 @@ public class metaData extends AppCompatActivity {
         String n  = OperatorName.getText().toString();
         String s  = SiteName.getText().toString();
         String a  = sampleID.getText().toString();
-
 
         String NULL = "";
 
@@ -549,8 +550,6 @@ public class metaData extends AppCompatActivity {
         homeScreen = new Intent(this, homeScreen.class);
 
         startActivity(homeScreen);
-
-
 
     }
 

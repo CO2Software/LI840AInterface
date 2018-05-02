@@ -86,12 +86,14 @@
                 android:layout_weight="0.1"
                 android:text="TextView" />
 
-            <TextView
-                android:id="@+id/tv_Comments"
+            <EditText
+                android:id="@+id/et_comments"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="0.4"
-                android:text="TextView" />
+                android:digits="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-.#_=+/@'():;!?$ "
+                android:hint="Edit comments"
+                android:maxLength = "250"
+                android:inputType="textCapWords"/>
 
         </LinearLayout>
 
@@ -266,6 +268,7 @@
             android:layout_height="match_parent"
             android:layout_weight="0.25"
             android:singleLine="true"
+            android:digits="1234567890,-."
             android:hint="Start,end"/>
 
     </LinearLayout>

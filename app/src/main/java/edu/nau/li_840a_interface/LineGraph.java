@@ -34,8 +34,6 @@ public class LineGraph
     // Constants //
     ///////////////
     private static final int MAX_DATA_POINTS = 120;
-    private static final double TOP_BUFF = 1.1;
-    private static final double BOTTOM_BUFF = 0.9;
 
     /*
      *  Constructor for a live line graph. Allows the graph to have points added to it dynamically.

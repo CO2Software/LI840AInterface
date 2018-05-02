@@ -60,6 +60,7 @@ public class homeScreen extends AppCompatActivity {
         Intent metaData;
 
         metaData = new Intent(this, metaData.class);
+        metaData.putExtra("FLAG", "False");
 
         startActivity(metaData);
 

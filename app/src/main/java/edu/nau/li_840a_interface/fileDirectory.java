@@ -52,12 +52,10 @@ import edu.nau.li_840a_interface.R;
 
 public class fileDirectory extends AppCompatActivity implements OnClickListener {
 
-    StringBuilder selectedStringB = new StringBuilder();
     EditText et_Filter;
     Button btnSend, btnView, btnDel, btnFilter, btnUndo, btnHome;
     private ListView lv;
     String message;
-    String line;
     Uri URI = null;
     private static final int PICK_FROM_GALLERY = 101;
     int viewFilePos;
@@ -95,27 +93,23 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
 
         //SETS THE ARRAY LIST AS CLICKABLE
         lv.setChoiceMode(2);
-        //lv.setSelector(android.R.color.holo_blue_light);
         int i = 0;
         final String metaCheck = "M-";
 
 
-
+       //Creates list that is integrated with ListView Object
         final List<String> appFiles = new ArrayList<String>();
 
         final ArrayList<String> sortedFiles = sortFiles(context.getFilesDir().list());
-        for (i = 0; i < context.getFilesDir().listFiles().length - 1; i++) {
+        //System.out.println("Sorted Files:" + sortedFiles);
+        for (i = 0; i < sortedFiles.size() ; i++) {
             if (sortedFiles.get(i).contains(metaCheck)) {
                 appFiles.add(sortedFiles.get(i).substring(2));
             }
 
-            else {
-               //appFiles.add(context.getFilesDir().list()[i]);
-            }
-
 
         }
-      Collections.reverse(appFiles);
+
 
         // This is the array adapter, it takes the context of the activity as a
         // first parameter, the type of list view as a second parameter and your
@@ -159,15 +153,11 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                 view.setSelected(true);
                 File file = new File(context.getFilesDir(), "M-" + lv.getItemAtPosition(i).toString());
                 File graphFile = new File(context.getFilesDir(), "G-" + lv.getItemAtPosition(i).toString());
-                //File imageFile = new File(context.getFilesDir(), "I" + lv.getItemAtPosition(i).toString().substring(1) + ".bmp");
-                //File imageFile = new File(context.getFilesDir(), "I-" + lv.getItemAtPosition(i).toString().substring(0, lv.getItemAtPosition(i).toString().length() - 4) + ".png");
                 File imageFile = new File(context.getFilesDir(), "I-" + lv.getItemAtPosition(i).toString().substring(0, lv.getItemAtPosition(i).toString().length() - 4) + ".png");
                 if(lv.getItemAtPosition(i).toString().contains("_subgraph_")) {
                     imageFile = new File(context.getFilesDir(), "I-" + lv.getItemAtPosition(i).toString().substring(0, lv.getItemAtPosition(i).toString().length() - 4).split("_subgraph_")[0] + ".png");
                 }
 
-                //File imageFile = new File("/storage/emulated/0/Android/data/edu.nau.li_840a_interface/files/Pictures", "I-" + lv.getItemAtPosition(i).toString().substring(0, lv.getItemAtPosition(i).toString().length() - 4) + ".png");
-                //System.out.println("TEST:  ImageFile= "+ imageFile);
                 if (lv.isItemChecked(i) == false) {
 
 
@@ -209,6 +199,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                     public void onClick(View view) {
                         listOfUri.clear();
                         int count = 0;
+                        //Creates warning popup when deleting files
                         AlertDialog.Builder builder;
                         builder = new AlertDialog.Builder(context);
                         builder.setTitle("DELETING FILES")
@@ -239,18 +230,18 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                                                     file.delete();
                                                     graphFile.delete();
                                                     imageFile.delete();
+                                                    lv.setItemChecked((j), false);
 
                                                 }
 
                                                 else {
-                                                    // btnView.setText(Integer.toString(j));
-                                                    // appFiles.remove(lv.getItemAtPosition(j - 1));
                                                     file.delete();
                                                     graphFile.delete();
                                                     imageFile.delete();
 
                                                 }
                                                 appFiles.remove(appFiles.indexOf(lv.getItemAtPosition(j - count)));
+                                                lv.setItemChecked((j - count), false);
                                                 count = count +1;
 
                                             }
@@ -276,7 +267,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                                 .show();
 
 
-
+                        //No files will be selected so no buttons can be pressed
                         arrayAdapter.notifyDataSetChanged();
                         selectedFiles.clear();
                         checkFileCount();
@@ -287,9 +278,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                         btnDel.setBackgroundColor(Color.TRANSPARENT);
                         btnSend.setClickable(false);
                         btnSend.setBackgroundColor(Color.TRANSPARENT);
-                        //Intent refresh;
-                        //refresh = new Intent(getApplicationContext() , fileDisplay.class);
-                        //startActivity(refresh);
+                        System.out.println("Files still selected :" + lv.getCheckedItemCount());
                     }
 
 
@@ -355,7 +344,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
 
                 btnFilter.setBackgroundColor(Color.TRANSPARENT);
                 btnFilter.setClickable(false);
-                Collections.reverse(appFiles);
+
 
             }
         });
@@ -376,13 +365,20 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                 arrayAdapter.clear();
                 tempFiles.clear();
 
-                for (int i = 0; i < context.getFilesDir().listFiles().length; i++) {
-                    if(context.getFilesDir().list()[i].contains(metaCheck)){
-                        appFiles.add(context.getFilesDir().list()[i].substring(2));}
+                for (int i = 0; i < context.getFilesDir().listFiles().length - 1; i++) {
+                    if (sortedFiles.get(i).contains(metaCheck)) {
+                        appFiles.add(sortedFiles.get(i).substring(2));
+                    }
+
+                    else {
+                        //appFiles.add(context.getFilesDir().list()[i]);
+                    }
+
+
                 }
                 btnFilter.setBackgroundResource(android.R.drawable.btn_default);
                 btnFilter.setClickable(true);
-                Collections.reverse(appFiles);
+
                 for(int l= 0; l < lv.getCount(); l++){
                     lv.setItemChecked(l, false);
 
@@ -406,22 +402,15 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
         //files in the selected data set and transfers them into the view screen.
         if (v == btnView) {
 
+            Button button = findViewById(R.id.btn_view);
+            button.setText(R.string.load);
+
             Intent viewScreen;
 
             viewScreen = new Intent(this, viewScreen.class);
             viewScreen.putExtra("FILE", "M-" + lv.getItemAtPosition(viewFilePos).toString());
             viewScreen.putExtra("GRAPHFILE", "G-" + lv.getItemAtPosition(viewFilePos).toString());
             viewScreen.putExtra("IMAGE", "I-" + lv.getItemAtPosition(viewFilePos).toString().substring(0, lv.getItemAtPosition(viewFilePos).toString().length() - 4) + ".png");
-            //JOEY WORK AROUND
-//            String imageString = "I-" + lv.getItemAtPosition(viewFilePos).toString().substring(0, lv.getItemAtPosition(viewFilePos).toString().length() - 4) + ".png";
-//            if (!imageString.contains("_subgraph_")){
-//                viewScreen.putExtra("IMAGE", imageString);
-//            }
-//            else{
-//                imageString = imageString.split("_subgraph_")[0] + ".png";
-//                viewScreen.putExtra("IMAGE", imageString);
-//            }
-            //JOEY WORK AROUND
             startActivity(viewScreen);
 
         }
@@ -504,11 +493,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
 
     }
 
-    @Override
-    public void onBackPressed()
-    {
-
-    }
+    //This method is responsible for sorting the files into a newest-first ordering
     ArrayList<String> sortFiles(String[] allFiles){
 
         ArrayList<String> tempArrayList = new ArrayList<String>();
@@ -530,12 +515,10 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
             returnArray[i] = tempArrayList.get(i);
         }
 
-
         //if 0 return empty array
         if (returnArray.length < 2){
             return returnArrayList;
         }
-
 
         //bubble sort
         for (int i = 0; i < returnArray.length-1; i++){
@@ -543,14 +526,18 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
                 //get string of full number from file
                 String tempFirst = returnArray[j].split("_")[2] + returnArray[j].split("_")[3];
                 String tempSecond = returnArray[j+1].split("_")[2] + returnArray[j+1].split("_")[3];
-                //take out csv
-                tempFirst = tempFirst.substring(0,14);
-                tempSecond = tempSecond.substring(0,14);
+                //take out csv if it is not a subgraph
+                if (!tempFirst.contains("_subgraph_")){
+                    tempFirst = tempFirst.substring(0,14);
+                }
+                if (!tempSecond.contains("_subgraph_")){
+                    tempSecond = tempSecond.substring(0,14);
+                }
                 //get int of string
                 long tempFirstNum = Long.parseLong(tempFirst);
                 long tempSecondNum = Long.parseLong(tempSecond);
                 //compare and swap if bigger
-                if (tempFirstNum > tempSecondNum)
+                if (tempFirstNum >= tempSecondNum)
                 {
                     String temp = returnArray[j];
                     returnArray[j] = returnArray[j+1];
@@ -561,7 +548,7 @@ public class fileDirectory extends AppCompatActivity implements OnClickListener 
 
         //add elements to arraylist with newest date being first
         for(int k = returnArray.length-1; k >= 0; k--){
-            returnArrayList.add(allFiles[k]);
+            returnArrayList.add(returnArray[k]);
             System.out.println(allFiles[k]);
         }
 

@@ -1,6 +1,6 @@
 /*
  *  Author: James Beasley
- *  Last updated: April 6th, 2018
+ *  Last updated: April 20th, 2018
  *  Description: Java file for the graph screen of the application. Contains methods which
  *               correspond to each button on the screen, as well as a receiver for data from the
  *               gas analyzer.
@@ -15,7 +15,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.IBinder;
@@ -23,7 +22,6 @@ import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Base64;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -37,6 +35,8 @@ import java.io.FileOutputStream;
 import java.lang.ref.WeakReference;
 import java.text.DecimalFormat;
 import java.util.Set;
+
+import static java.lang.Double.NaN;
 
 public class graphScreen extends AppCompatActivity {
 
@@ -53,9 +53,11 @@ public class graphScreen extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
+        // Initializes the display
         super.onCreate(savedInstanceState);
         setContentView(R.layout.graph_screen);
 
+        // Sets the screen in fullscreen mode
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
                         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
@@ -169,17 +171,64 @@ public class graphScreen extends AppCompatActivity {
     public void startStopLog(View view)
     {
 
-        Button button = findViewById(R.id.logbutton);
-        Button finalizeButton = findViewById(R.id.finalbutton);
+        final Context con = this;
+
+        final Button button = findViewById(R.id.logbutton);
+        final Button finalizeButton = findViewById(R.id.finalbutton);
 
         // If the button current says "Start Logging", switch the text and inform the manager
         if (button.getText().equals("Start Logging"))
         {
-            button.setText("Stop Logging");
-            finalizeButton.setBackgroundColor(Color.TRANSPARENT);
-            finalizeButton.setEnabled(false);
-            manager.resetGraphs();
-            manager.startlogging();
+
+            if (!manager.isEmpty())
+            {
+                // Initialize the alert box
+                AlertDialog.Builder builder;
+                builder = new AlertDialog.Builder(this);
+
+                // Set the title and message of the alert box
+                builder.setTitle("Overwrite previous data set?");
+                builder.setMessage("Are you sure you want to overwrite the previously collected" +
+                        " data set?");
+
+                // Set the icon of the alert box
+                builder.setIcon(android.R.drawable.ic_dialog_alert);
+
+                // If the yes button is pressed
+                builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+
+                        button.setText("Stop Logging");
+                        finalizeButton.setBackgroundColor(Color.TRANSPARENT);
+                        finalizeButton.setEnabled(false);
+                        manager.resetGraphs();
+                        manager.startlogging();
+
+                    }
+                });
+
+                // If the no button is pressed, do nothing
+                builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+
+                    }
+                });
+
+                // Show the alert box
+                builder.show();
+            }
+            else
+            {
+
+                button.setText("Stop Logging");
+                finalizeButton.setBackgroundColor(Color.TRANSPARENT);
+                finalizeButton.setEnabled(false);
+                manager.resetGraphs();
+                manager.startlogging();
+            }
+
         }
 
         // If the button currently says "Stop Logging", switch the text and inform the manager
@@ -227,24 +276,43 @@ public class graphScreen extends AppCompatActivity {
      */
     public void goToMetadata(View view)
     {
+
         final Context con = this;
+
+        // Initialize the alert box
         AlertDialog.Builder builder;
         builder = new AlertDialog.Builder(this);
+
+        // Set the title and message of the alert box
         builder.setTitle("Exit graph screen?");
         builder.setMessage("Are you sure you want to exit the graph screen? You will lose all" +
                 " currently recorded data.");
+
+        // Set the icon of the alert box
         builder.setIcon(android.R.drawable.ic_dialog_alert);
 
+        // If the yes button is pressed
         builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+
+                // Initialize the meta data screen
                 Intent metaDataScreen;
                 metaDataScreen = new Intent(con, metaData.class);
+
+                // JIMMY DO NOT DELETE THIS
+                // Fetch the previously entered meta data IMAGE
+                Bitmap metaImage = getIntent().getParcelableExtra("IMAGE");
                 metaDataScreen.putExtra("FLAG", "True");
+                metaDataScreen.putExtra("IMAGE", metaImage);
+
+                // Start the new screen
                 startActivity(metaDataScreen);
+
             }
         });
 
+        // If the no button is pressed, do nothing
         builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
@@ -252,6 +320,7 @@ public class graphScreen extends AppCompatActivity {
             }
         });
 
+        // Show the alert box
         builder.show();
     }
 
@@ -275,16 +344,17 @@ public class graphScreen extends AppCompatActivity {
         String metaLat;
         String metaElevation;
         Bitmap imageString;
-        String metaImageFile;
         String fileName;
         String graphArray[];
-        String slope;
         String rSquared;
         String stdError;
         String regSlope;
         FileOutputStream outStream;
         Intent fileScreen;
+        Double firstSecond;
+        Double lastSecond;
 
+        // Set the button text to "Saving..."
         Button button = findViewById(R.id.finalbutton);
         button.setText("Saving...");
 
@@ -306,27 +376,38 @@ public class graphScreen extends AppCompatActivity {
         metaLong = getIntent().getStringExtra("GPSLong");
         metaLat = getIntent().getStringExtra("GPSLat");
         metaElevation = getIntent().getStringExtra("ELEVATION");
-        //System.out.println("TEST: Getting Bitmap from Extra");
         imageString = getIntent().getParcelableExtra("IMAGE");
-        metaImageFile = getIntent().getStringExtra("IMAGEPATH");
-
-
 
         // Split the graph data so that we can only get stats on the CO2 graph
         graphArray = splitGraphData(reading);
-        DecimalFormat df = new DecimalFormat("#.0000");
 
         // Calculate each of the stats
+        DecimalFormat df = new DecimalFormat("#.0000");
         rSquared = df.format(getRSquared(graphArray[0]));
         stdError = df.format(getStandardError(graphArray[0]));
         regSlope = df.format(getRegressionSlope(graphArray[0]));
 
+        try
+        {
+
+            firstSecond = getXRangeStart(graphArray[0]);
+            lastSecond = getXRangeEnd(graphArray[0]);
+
+        }
+        catch (Exception e)
+        {
+
+            firstSecond = NaN;
+            lastSecond = NaN;
+
+        }
+
         // Construct the CSV file content
         metaString = "Operator Name,Site Name,Sample ID,Temperature,Comments,Time and Date,Longitude," +
-                     "Latitude,Elevation,R Squared,Regression Slope,Standard Error\n" +
+                     "Latitude,Elevation,R Squared,Regression Slope,Standard Error,X Start Range,X End Range\n" +
                      metaOpName + "," + metaSite + "," + metaSampleId + "," + metaTemp + "," +
                      metaComments + "," + metaTime + "," + metaLong + "," + metaLat + "," +
-                     metaElevation + "," + rSquared + "," + regSlope + "," + stdError;
+                     metaElevation + "," + rSquared + "," + regSlope + "," + stdError + "," + df.format(firstSecond) + "," + df.format(lastSecond);
 
 
         // Build the file name using the site name, sample id, and time stamp
@@ -348,7 +429,6 @@ public class graphScreen extends AppCompatActivity {
             // Image File, only if an image was taken
             if (imageString != null)
             {
-                System.out.println("TEST: Converting File to PNG");
                 outStream = openFileOutput("I-" + fileName + ".png", Context.MODE_APPEND);
                 //Bitmap imageBMP = BitmapFactory.decodeFile(metaImageFile);
                 imageString.compress(Bitmap.CompressFormat.PNG, 100, outStream);
@@ -361,9 +441,6 @@ public class graphScreen extends AppCompatActivity {
         {
 
         }
-
-        // Flag for Meta Data Refill = False
-        // intent.putExtra("FLAG", "False")
 
         // Initialize a new file screen and take the user there
         fileScreen = new Intent(this, fileDirectory.class);
@@ -739,6 +816,35 @@ public class graphScreen extends AppCompatActivity {
         rSquared  = (rSquared * rSquared);
 
         return rSquared;
+    }
+    private double getXRangeStart(String graphPoints) throws Exception{
+
+        String[] tempData;
+        String[] firstData;
+        double firstSecond;
+
+        //split data
+        tempData = graphPoints.split("\n");
+
+        firstData = tempData[0].split(",");
+        firstSecond = Float.parseFloat(firstData[0]);
+
+        return firstSecond;
+    }
+
+    private double getXRangeEnd(String graphPoints) throws Exception{
+
+        String[] tempData;
+        String[] lastData;
+        double lastSecond;
+
+        //split data
+        tempData = graphPoints.split("\n");
+
+        lastData = tempData[tempData.length - 1].split(",");
+        lastSecond = Float.parseFloat(lastData[0]);
+
+        return lastSecond;
     }
     // END OF JOEYS CODE ADDING
 
